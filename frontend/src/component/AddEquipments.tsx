@@ -56,7 +56,9 @@ export default function AddEquipments() {
       .then((data: EquipmentPayload) => {
         const normalizeCondition = (value: string) => {
           const key = value.trim().toLowerCase();
-          if (key === "rn" || key === "running") return "Running";
+          if (!key || key === "-") return "";
+          if (key === "rn" || key === "running" || key === "runner")
+            return "Runner";
           if (key === "rp" || key === "repairable") return "Repairable";
           if (key === "us" || key === "unserviceable") return "Unserviceable";
           if (key === "w/o" || key === "w//o" || key === "write-off")
@@ -66,6 +68,7 @@ export default function AddEquipments() {
 
         const normalizeDeployment = (value: string) => {
           const key = value.trim().toLowerCase();
+          if (!key || key === "-") return "";
           if (key === "ft" || key === "full-time" || key === "full time")
             return "Full-Time";
           if (key === "pt" || key === "part-time" || key === "part time")
@@ -119,6 +122,18 @@ export default function AddEquipments() {
       setError("ID No. is required");
       return;
     }
+    if (!model.trim()) {
+      setError("Maker, Model & Type is required");
+      return;
+    }
+    if (!location.trim()) {
+      setError("Location is required");
+      return;
+    }
+    if (!date.trim()) {
+      setError("Date Received is required");
+      return;
+    }
     const normalizeCategory = (value: string) => {
       const key = value.trim().toLowerCase();
       if (key.includes("digital")) return "Digital Device";
@@ -131,8 +146,8 @@ export default function AddEquipments() {
       id_no: idNo.trim(),
       maker_model_type: model.trim(),
       category: normalizeCategory(category),
-      condition: condition,
-      deployment: deployment,
+      condition: condition || "-",
+      deployment: deployment || "-",
       quantity: Number.isFinite(quantity) ? quantity : 0,
       location: location.trim(),
       date_received: date,
@@ -143,9 +158,9 @@ export default function AddEquipments() {
       const existingItems = await getEquipments();
       const normalizedIdNo = idNo.trim().toLowerCase();
       const duplicate = (existingItems as any[]).find((item) => {
-        const existingIdNo = String(
-          item?.["ID No."] ?? item?.id_no ?? "",
-        ).trim().toLowerCase();
+        const existingIdNo = String(item?.["ID No."] ?? item?.id_no ?? "")
+          .trim()
+          .toLowerCase();
         if (!existingIdNo) return false;
         if (existingIdNo !== normalizedIdNo) return false;
         if (isEditing) {
@@ -175,175 +190,186 @@ export default function AddEquipments() {
   };
 
   return (
-    <div className="p-4 bg-background">
-      <div className="max-w-3xl mx-auto bg-card text-card-foreground rounded shadow p-6">
-        <div className="flex items-start gap-4 mb-4">
-          <Button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-black dark:text-white p-2 rounded border border-border bg-background hover:bg-accent/5"
-            aria-label="Go back"
+    <>
+      <div className="p-4 bg-background">
+        <div className="max-w-3xl mx-auto bg-card text-card-foreground rounded shadow p-6">
+          <div className="flex items-start gap-4 mb-4">
+            <Button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-black dark:text-white p-2 rounded border border-border bg-background hover:bg-accent/5"
+              aria-label="Go back"
+            >
+              <MoveLeft />
+            </Button>
+
+            <div>
+              <h2 className="text-lg font-semibold">
+                {isEditing ? "Edit Equipment" : "Add Equipment"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isEditing
+                  ? "Update the equipment details."
+                  : "Fill in required details for the new equipment."}
+              </p>
+            </div>
+          </div>
+
+          {isLoading && (
+            <div className="mb-4 text-sm text-muted-foreground">
+              Loading equipment data...
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 text-sm text-destructive">{error}</div>
+          )}
+
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            <MoveLeft />
-          </Button>
-
-          <div>
-            <h2 className="text-lg font-semibold">
-              {isEditing ? "Edit Equipment" : "Add Equipment"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isEditing
-                ? "Update the equipment details."
-                : "Fill in required details for the new equipment."}
-            </p>
-          </div>
-        </div>
-
-        {isLoading && (
-          <div className="mb-4 text-sm text-muted-foreground">
-            Loading equipment data...
-          </div>
-        )}
-        {error && <div className="mb-4 text-sm text-destructive">{error}</div>}
-
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-        >
-          <div>
-            <label htmlFor="idNo" className="block text-sm mb-1">
-              ID No. <span className="text-destructive">*</span>
-            </label>
-            <input
-              id="idNo"
-              name="idNo"
-              aria-required
-              className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
-              value={idNo}
-              onChange={(e) => setIdNo(e.target.value)}
-              placeholder="e.g. PC-01"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="model" className="block text-sm mb-1">
-              Maker, Model & Type
-            </label>
-            <input
-              id="model"
-              name="model"
-              className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="e.g. Computer (Core i5)"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4 col-span-2">
             <div>
-              <label htmlFor="category" className="block text-sm mb-1">
-                Category
+              <label htmlFor="idNo" className="block text-sm mb-1">
+                ID No. <span className="text-destructive">*</span>
               </label>
-              <Category value={category} onChange={setCategory} />
+              <input
+                id="idNo"
+                name="idNo"
+                aria-required
+                className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
+                value={idNo}
+                onChange={(e) => setIdNo(e.target.value)}
+                placeholder="e.g. PC-01"
+                required
+              />
             </div>
             <div>
-              <label htmlFor="condition" className="block text-sm mb-1">
-                Condition
+              <label htmlFor="model" className="block text-sm mb-1">
+                Maker, Model & Type{" "}
+                <span className="text-destructive">*</span>
               </label>
-              <Condition value={condition} onChange={setCondition} />
+              <input
+                id="model"
+                name="model"
+                aria-required
+                className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g. Computer (Core i5)"
+                required
+              />
             </div>
-            <div>
-              <label htmlFor="deployment" className="block text-sm mb-1">
-                Deployment
-              </label>
-              <Deployment value={deployment} onChange={setDeployment} />
+            <div className="grid grid-cols-3 gap-4 col-span-2">
+              <div>
+                <label htmlFor="category" className="block text-sm mb-1">
+                  Category
+                </label>
+                <Category value={category} onChange={setCategory} />
+              </div>
+              <div>
+                <label htmlFor="condition" className="block text-sm mb-1">
+                  Condition
+                </label>
+                <Condition value={condition} onChange={setCondition} />
+              </div>
+              <div>
+                <label htmlFor="deployment" className="block text-sm mb-1">
+                  Deployment
+                </label>
+                <Deployment value={deployment} onChange={setDeployment} />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4 col-span-2">
-            <div>
-              <label htmlFor="quantity" className="block text-sm mb-1">
-                Quantity
-              </label>
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-3 gap-4 col-span-2">
+              <div>
+                <label htmlFor="quantity" className="block text-sm mb-1">
+                  Quantity
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="quantity"
+                    name="quantity"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={quantity}
+                    onChange={(e) => {
+                      const nextValue = Number(e.target.value);
+                      setQuantity(Number.isFinite(nextValue) ? nextValue : 0);
+                    }}
+                    className="w-full text-center border border-border bg-input text-foreground srounded focus:border-ring py-2"
+                    aria-label="Quantity"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="location" className="block text-sm mb-1">
+                  Location <span className="text-destructive">*</span>
+                </label>
                 <input
-                  id="quantity"
-                  name="quantity"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={quantity}
-                  onChange={(e) => {
-                    const nextValue = Number(e.target.value);
-                    setQuantity(Number.isFinite(nextValue) ? nextValue : 0);
-                  }}
-                  className="w-full text-center border border-border bg-input text-foreground srounded focus:border-ring py-2"
-                  aria-label="Quantity"
+                  id="location"
+                  name="location"
+                  aria-required
+                  className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Software Lab"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="dateReceived" className="block text-sm mb-1">
+                  Date Received <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="dateReceived"
+                  name="dateReceived"
+                  type="date"
+                  aria-required
+                  className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
                 />
               </div>
             </div>
-
-            <div>
-              <label htmlFor="location" className="block text-sm mb-1">
-                Location
+            <div className="col-span-2">
+              <label htmlFor="description" className="block text-sm mb-1">
+                Description
               </label>
-              <input
-                id="location"
-                name="location"
-                className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Software Lab"
+              <textarea
+                id="description"
+                name="description"
+                className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring resize-none overflow-hidden"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = e.target.scrollHeight + "px";
+                }}
+                rows={2}
               />
             </div>
+            <div className="col-span-2 flex flex-col sm:flex-row justify-end gap-3">
+              <Button
+                type="button"
+                onClick={() => navigate("/equipments")}
+                className="text-black dark:text-white px-4 py-2 rounded border border-border bg-background hover:bg-accent/5 w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
 
-            <div>
-              <label htmlFor="dateReceived" className="block text-sm mb-1">
-                Date Received
-              </label>
-              <input
-                id="dateReceived"
-                name="dateReceived"
-                type="date"
-                className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Button
+                type="submit"
+                className="px-4 py-2 rounded bg-primary text-primary-foreground w-full sm:w-auto"
+              >
+                {isEditing ? "Update Equipment" : "Add Equipment"}
+              </Button>
             </div>
-          </div>
-          <div className="col-span-2">
-            <label htmlFor="description" className="block text-sm mb-1">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              className="w-full border border-border bg-input text-foreground placeholder:text-muted-foreground px-3 py-2 rounded focus:border-ring resize-none overflow-hidden"
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = e.target.scrollHeight + "px";
-              }}
-              rows={2}
-            />
-          </div>
-          <div className="col-span-2 flex flex-col sm:flex-row justify-end gap-3">
-            <Button
-              type="button"
-              onClick={() => navigate("/equipments")}
-              className="text-black dark:text-white px-4 py-2 rounded border border-border bg-background hover:bg-accent/5 w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-
-            <Button
-              type="submit"
-              className="px-4 py-2 rounded bg-primary text-primary-foreground w-full sm:w-auto"
-            >
-              {isEditing ? "Update Equipment" : "Add Equipment"}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

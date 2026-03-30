@@ -18,10 +18,14 @@ type LoginResponse = {
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const response = await api.post<LoginResponse>("/api/auth/login", {
-    email,
-    password,
-  });
+  const response = await api.post<LoginResponse>(
+    "/api/auth/login",
+    {
+      email,
+      password,
+    },
+    { skipAuth: true } as any,
+  );
   return response.data;
 };
 
@@ -43,7 +47,11 @@ export const refreshAccessToken = async (refreshToken?: string) => {
   const response = await api.post<{
     accessToken?: string;
     token?: string;
-  }>("/api/auth/refresh", refreshToken ? { refreshToken } : undefined);
+  }>(
+    "/api/auth/refresh",
+    refreshToken ? { refreshToken } : undefined,
+    { skipAuth: true } as any,
+  );
   return response.data;
 };
 

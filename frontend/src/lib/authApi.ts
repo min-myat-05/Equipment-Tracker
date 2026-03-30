@@ -14,6 +14,12 @@ const authApi = axios.create({
 // Attach access token if present.
 authApi.interceptors.request.use(
   (config) => {
+    if ((config as any).skipAuth) {
+      if (config.headers) {
+        delete config.headers.Authorization;
+      }
+      return config;
+    }
     const token =
       localStorage.getItem("token") ?? localStorage.getItem("access_token");
     if (token) {
@@ -31,12 +37,18 @@ authApi.interceptors.response.use(
     if (skipLog) {
       return Promise.reject(error);
     }
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Request failed.";
     if (error.response) {
-      console.error("Error:", error.response.data);
+      console.error(message);
     } else if (error.request) {
       console.error("No response from server");
     } else {
-      console.error("Request error:", error.message);
+      console.error(message);
     }
     return Promise.reject(error);
   },

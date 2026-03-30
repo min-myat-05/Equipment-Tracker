@@ -30,7 +30,7 @@ export default function Condition({ value, onChange }: ConditionProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="select">Select condition</SelectItem>
-          <SelectItem value="Running">Running</SelectItem>
+          <SelectItem value="Runner">Runner</SelectItem>
           <SelectItem value="Repairable">Repairable</SelectItem>
           <SelectItem value="Unserviceable">Unserviceable</SelectItem>
           <SelectItem value="Write-off">Write-off</SelectItem>

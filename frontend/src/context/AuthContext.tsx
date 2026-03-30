@@ -17,6 +17,7 @@ import {
   type AuthUser,
   type UserRole,
 } from "@/services/authService";
+import { isPasswordStrong } from "@/lib/passwordRules";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -70,6 +71,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const persistAccessToken = useCallback((token: string) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    localStorage.setItem(ACCESS_TOKEN_ALT_KEY, token);
+  }, []);
+
+  const tryRefreshSession = useCallback(async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      return false;
+    }
+    try {
+      const refreshed = await refreshAccessToken(refreshToken);
+      const nextToken =
+        (refreshed as any)?.tokens?.access ??
+        (refreshed as any)?.tokens?.access_token ??
+        (refreshed as any).access_token ??
+        refreshed.accessToken ??
+        refreshed.token;
+      if (!nextToken) {
+        throw new Error("Refresh failed");
+      }
+      persistAccessToken(nextToken);
+      const who = await getWhoAmI();
+      const resolved = extractUser(who);
+      if (!resolved) {
+        throw new Error("Invalid profile");
+      }
+      setUser(resolved);
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
+  }, [clearSession, persistAccessToken]);
+
   const login = useCallback(async (email: string, password: string) => {
     const cleanedEmail = email.trim().toLowerCase();
     if (!cleanedEmail || !password.trim()) {
@@ -89,8 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (result as any).refresh_token ??
         result.refreshToken;
       if (accessToken) {
-        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-        localStorage.setItem(ACCESS_TOKEN_ALT_KEY, accessToken);
+        persistAccessToken(accessToken);
       }
       if (refreshToken) {
         localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
@@ -121,6 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!username || !email || !password) {
       return { ok: false, error: "All fields are required." };
     }
+    if (!isPasswordStrong(password)) {
+      return {
+        ok: false,
+        error:
+          "Password must be at least 8 characters and include uppercase, lowercase, and special characters.",
+      };
+    }
     try {
       await createAdminAccount({
         username,
@@ -129,9 +171,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { ok: true };
     } catch (err) {
+      if ((err as any)?.response?.status === 401 && (await tryRefreshSession())) {
+        try {
+          await createAdminAccount({
+            username,
+            email,
+            password,
+          });
+          return { ok: true };
+        } catch (retryErr) {
+          return { ok: false, error: getErrorMessage(retryErr) };
+        }
+      }
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, []);
+  }, [tryRefreshSession]);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const current = currentPassword.trim();
@@ -139,13 +193,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!current || !next) {
       return { ok: false, error: "Current and new passwords are required." };
     }
+    if (!isPasswordStrong(next)) {
+      return {
+        ok: false,
+        error:
+          "New password must be at least 8 characters and include uppercase, lowercase, and special characters.",
+      };
+    }
     try {
       await changePasswordApi({ currentPassword: current, newPassword: next });
       return { ok: true };
     } catch (err) {
+      if ((err as any)?.response?.status === 401 && (await tryRefreshSession())) {
+        try {
+          await changePasswordApi({ currentPassword: current, newPassword: next });
+          return { ok: true };
+        } catch (retryErr) {
+          return { ok: false, error: getErrorMessage(retryErr) };
+        }
+      }
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, []);
+  }, [tryRefreshSession]);
 
   const logout = useCallback(async () => {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY) ?? undefined;
@@ -189,8 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (!nextToken) {
               throw new Error("Refresh failed");
             }
-            localStorage.setItem(ACCESS_TOKEN_KEY, nextToken);
-            localStorage.setItem(ACCESS_TOKEN_ALT_KEY, nextToken);
+            persistAccessToken(nextToken);
             const who = await getWhoAmI();
             const resolved = extractUser(who);
             if (!resolved) {
@@ -208,7 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     hydrate();
-  }, [clearSession]);
+  }, [clearSession, persistAccessToken]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

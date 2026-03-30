@@ -1,5 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
+import PasswordRequirementList from "@/component/PasswordRequirementList";
+import PasswordInput from "@/component/PasswordInput";
+import { isPasswordStrong } from "@/lib/passwordRules";
+import { cn } from "@/lib/utils";
 
 export default function CreateAdminAccount() {
   const { createAdmin } = useAuth();
@@ -9,11 +13,27 @@ export default function CreateAdminAccount() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const trimmedPassword = password.trim();
+  const passwordIsStrong = useMemo(
+    () => isPasswordStrong(trimmedPassword),
+    [trimmedPassword],
+  );
+  const canSubmit =
+    username.trim().length > 0 &&
+    email.trim().length > 0 &&
+    passwordIsStrong &&
+    !isSubmitting;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+    if (!passwordIsStrong) {
+      setError(
+        "Password must be at least 8 characters and include uppercase, lowercase, and special characters.",
+      );
+      return;
+    }
     setIsSubmitting(true);
     const result = await createAdmin({ username, email, password });
     setIsSubmitting(false);
@@ -30,8 +50,8 @@ export default function CreateAdminAccount() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-96px)] bg-linear-to-br p-6 flex justify-center">
-      <div className="mx-auto w-full max-w-xl" style={{ marginTop: "70px" }}>
+    <div className="min-h-[calc(100vh-96px)] bg-linear-to-br p-3 flex justify-center">
+      <div className="mx-auto w-full max-w-xl">
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -84,17 +104,25 @@ export default function CreateAdminAccount() {
               <label className="text-sm font-medium" htmlFor="admin-password">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="admin-password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                inputClassName={cn(
+                  "w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2",
+                  password.length === 0
+                    ? "border-border focus:ring-primary/30"
+                    : passwordIsStrong
+                      ? "border-emerald-400/70 focus:ring-emerald-500/20"
+                      : "border-rose-400/70 focus:ring-rose-500/20",
+                )}
                 placeholder="Use a strong password"
                 required
               />
             </div>
+
+            <PasswordRequirementList password={trimmedPassword} />
 
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -109,8 +137,8 @@ export default function CreateAdminAccount() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+              disabled={!canSubmit}
+              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? "Creating..." : "Create Admin"}
             </button>

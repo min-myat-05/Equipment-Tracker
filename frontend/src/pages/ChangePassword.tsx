@@ -1,5 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
+import PasswordRequirementList from "@/component/PasswordRequirementList";
+import PasswordInput from "@/component/PasswordInput";
+import { isPasswordStrong } from "@/lib/passwordRules";
+import { cn } from "@/lib/utils";
 
 export default function ChangePassword() {
   const { changePassword } = useAuth();
@@ -9,6 +13,18 @@ export default function ChangePassword() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const trimmedNewPassword = newPassword.trim();
+  const trimmedConfirmPassword = confirmPassword.trim();
+  const newPasswordIsStrong = useMemo(
+    () => isPasswordStrong(trimmedNewPassword),
+    [trimmedNewPassword],
+  );
+  const passwordsMatch = trimmedNewPassword === trimmedConfirmPassword;
+  const canSubmit =
+    currentPassword.trim().length > 0 &&
+    newPasswordIsStrong &&
+    passwordsMatch &&
+    !isSubmitting;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,6 +33,12 @@ export default function ChangePassword() {
 
     if (!currentPassword.trim() || !newPassword.trim()) {
       setError("Please fill in all required fields.");
+      return;
+    }
+    if (!newPasswordIsStrong) {
+      setError(
+        "New password must be at least 8 characters and include uppercase, lowercase, and special characters.",
+      );
       return;
     }
     if (newPassword.trim() !== confirmPassword.trim()) {
@@ -40,8 +62,8 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-96px)] p-6 flex justify-center">
-      <div className="mx-auto w-full max-w-lg" style={{ marginTop: "70px" }}>
+    <div className="min-h-[calc(100vh-96px)] p-3 flex justify-center">
+      <div className="mx-auto w-full max-w-lg">
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h1 className="text-lg font-semibold text-foreground">
             Change Password
@@ -55,13 +77,12 @@ export default function ChangePassword() {
               <label className="text-sm font-medium" htmlFor="current-password">
                 Current Password
               </label>
-              <input
+              <PasswordInput
                 id="current-password"
-                type="password"
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                inputClassName="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 required
               />
             </div>
@@ -70,13 +91,19 @@ export default function ChangePassword() {
               <label className="text-sm font-medium" htmlFor="new-password">
                 New Password
               </label>
-              <input
+              <PasswordInput
                 id="new-password"
-                type="password"
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                inputClassName={cn(
+                  "w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2",
+                  newPassword.length === 0
+                    ? "border-border focus:ring-primary/30"
+                    : newPasswordIsStrong
+                      ? "border-emerald-400/70 focus:ring-emerald-500/20"
+                      : "border-rose-400/70 focus:ring-rose-500/20",
+                )}
                 required
               />
             </div>
@@ -85,16 +112,24 @@ export default function ChangePassword() {
               <label className="text-sm font-medium" htmlFor="confirm-password">
                 Confirm New Password
               </label>
-              <input
+              <PasswordInput
                 id="confirm-password"
-                type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                inputClassName={cn(
+                  "w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2",
+                  confirmPassword.length === 0
+                    ? "border-border focus:ring-primary/30"
+                    : passwordsMatch
+                      ? "border-emerald-400/70 focus:ring-emerald-500/20"
+                      : "border-rose-400/70 focus:ring-rose-500/20",
+                )}
                 required
               />
             </div>
+
+            <PasswordRequirementList password={trimmedNewPassword} />
 
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -109,8 +144,8 @@ export default function ChangePassword() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+              disabled={!canSubmit}
+              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? "Updating..." : "Update Password"}
             </button>

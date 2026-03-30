@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import backgroundImage from "../assets/TUM-4-1536x1152.jpg";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
+import PasswordInput from "@/component/PasswordInput";
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -81,12 +82,11 @@ export default function LoginForm() {
             >
               Password
             </label>
-            <input
+            <PasswordInput
               id="login-password"
-              type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/30"
+              inputClassName="w-full rounded border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="********"
               required
             />

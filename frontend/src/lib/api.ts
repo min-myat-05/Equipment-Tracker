@@ -32,13 +32,18 @@ api.interceptors.response.use(
     if (skipLog) {
       return Promise.reject(error);
     }
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Request failed.";
     if (error.response) {
-      // Server responded with error
-      console.error("Error:", error.response.data);
+      console.error(message);
     } else if (error.request) {
       console.error("No response from server");
     } else {
-      console.error("Request error:", error.message);
+      console.error(message);
     }
     return Promise.reject(error);
   },
